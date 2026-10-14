@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>管理者画面</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 24px; }
+      .card { max-width: 640px; padding: 16px; border: 1px solid #ddd; border-radius: 8px; }
+      label { display: block; margin-top: 12px; font-weight: 600; }
+      input { width: 100%; padding: 8px; box-sizing: border-box; }
+      button { margin-top: 12px; padding: 8px 16px; }
+      #result { margin-top: 12px; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>Notion移管PoC 管理者画面</h1>
+    <div class="card">
+      <p>退職予定者ごとの移管先レコード（ページID）を登録します。</p>
+      <label for="userKey">対象ユーザー識別子（メール推奨）</label>
+      <input id="userKey" placeholder="john@example.co.jp" />
+
+      <label for="destinationPageId">移管先レコードのページID</label>
+      <input id="destinationPageId" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+
+      <button onclick="saveRecord()">保存</button>
+      <button onclick="loadRecord()">読込</button>
+      <div id="result"></div>
+    </div>
+
+    <script>
+      function setResult(text) {
+        document.getElementById('result').textContent = text;
+      }
+
+      function saveRecord() {
+        const userKey = document.getElementById('userKey').value;
+        const destinationPageId = document.getElementById('destinationPageId').value;
+        google.script.run
+          .withSuccessHandler((result) => {
+            if (!result.ok) {
+              setResult('保存失敗: ' + result.error);
+              return;
+            }
+            setResult('保存完了\n' + JSON.stringify(result.data, null, 2));
+          })
+          .saveDestinationRecord(userKey, destinationPageId);
+      }
+
+      function loadRecord() {
+        const userKey = document.getElementById('userKey').value;
+        google.script.run
+          .withSuccessHandler((result) => {
+            if (!result.ok) {
+              setResult('読込失敗: ' + result.error);
+              return;
+            }
+            document.getElementById('destinationPageId').value = result.data.destinationPageId;
+            setResult('読込完了\n' + JSON.stringify(result.data, null, 2));
+          })
+          .getDestinationRecord(userKey);
+      }
+    </script>
+  </body>
+</html>

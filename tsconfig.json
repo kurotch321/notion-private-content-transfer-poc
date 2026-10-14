@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2019",
+    "module": "preserve",
+    "lib": ["ES2019"],
+    "rootDir": "src",
+    "outDir": "dist",
+    "strict": true,
+    "noImplicitReturns": true,
+    "types": ["google-apps-script"],
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts"]
+}
