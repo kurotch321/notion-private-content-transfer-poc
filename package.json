@@ -1,0 +1,26 @@
+{
+  "name": "notion-private-content-transfer-poc",
+  "version": "1.0.0",
+  "description": "Notionのプライベートページを情シス管理下へ転送するツールのPoC",
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc && cp src/*.html dist/ && cp src/appsscript.json dist/appsscript.json",
+    "typecheck": "tsc --noEmit",
+    "deploy": "npm run build && clasp push",
+    "open": "clasp open"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://localhost:26831/kurotch321/notion-private-content-transfer-poc"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@google/clasp": "^3.4.1",
+    "@types/google-apps-script": "^2.0.13",
+    "typescript": "^7.0.2"
+  },
+  "private": true
+}

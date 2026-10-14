@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>退職予定者ウィザード</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 24px; }
+      .card { max-width: 900px; padding: 16px; border: 1px solid #ddd; border-radius: 8px; }
+      input, button { padding: 8px; }
+      input[type="text"], input[type="password"] { width: 100%; box-sizing: border-box; margin-bottom: 8px; }
+      .candidate { border-top: 1px solid #eee; padding: 8px 0; }
+      .meta { color: #666; font-size: 12px; }
+      #status { white-space: pre-wrap; margin-top: 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>Notion移管PoC 退職予定者ウィザード</h1>
+    <div class="card">
+      <h2>1. PAT発行と入力</h2>
+      <ol>
+        <li>NotionのSettings → ConnectionsでPersonal access token(PAT)を発行</li>
+        <li>このPoCセッションのみで利用し、完了後は失効する</li>
+        <li>PATは保存されません（GASの永続領域には書き込みません）</li>
+      </ol>
+
+      <label>ユーザー識別子（管理者が登録した値）</label>
+      <input id="userKey" type="text" placeholder="john@example.co.jp" />
+      <label>PAT</label>
+      <input id="pat" type="password" placeholder="secret_xxx" />
+      <button onclick="validatePat()">PATと移管先を検証</button>
+
+      <h2>2. 移管候補を検索</h2>
+      <input id="query" type="text" placeholder="検索キーワード（任意）" />
+      <button onclick="searchCandidates()">候補を取得</button>
+      <div id="candidates"></div>
+
+      <h2>3. dry-run / 実行</h2>
+      <button onclick="runDryRun()">dry-run</button>
+      <div>
+        <label>最終確認（実行時は MOVE と入力）</label>
+        <input id="confirmPhrase" type="text" placeholder="MOVE" />
+        <button onclick="executeTransfer()">移管を実行</button>
+      </div>
+
+      <div id="status"></div>
+    </div>
+
+    <script>
+      let nextCursor = null;
+      let loadedCandidates = [];
+
+      function setStatus(text) {
+        document.getElementById('status').textContent = text;
+      }
+
+      function values() {
+        return {
+          userKey: document.getElementById('userKey').value,
+          pat: document.getElementById('pat').value
+        };
+      }
+
+      function validatePat() {
+        const v = values();
+        google.script.run.withSuccessHandler((result) => {
+          if (!result.ok) {
+            setStatus('検証失敗: ' + result.error);
+            return;
+          }
+          setStatus('検証成功\n' + JSON.stringify(result.data, null, 2));
+        }).validatePatForDestination(v);
+      }
+
+      function searchCandidates() {
+        const v = values();
+        const query = document.getElementById('query').value;
+        google.script.run.withSuccessHandler((result) => {
+          if (!result.ok) {
+            setStatus('検索失敗: ' + result.error);
+            return;
+          }
+          loadedCandidates = result.data.candidates;
+          nextCursor = result.data.nextCursor;
+          renderCandidates();
+          setStatus('検索完了 hasMore=' + result.data.hasMore + ' nextCursor=' + (nextCursor || 'none'));
+        }).listPrivatePageCandidates({ ...v, query, startCursor: null, pageSize: 20 });
+      }
+
+      function renderCandidates() {
+        const container = document.getElementById('candidates');
+        container.innerHTML = '';
+        loadedCandidates.forEach((item) => {
+          const div = document.createElement('div');
+          div.className = 'candidate';
+          const checked = item.isTopLevelPrivate ? 'checked' : '';
+          div.innerHTML = `
+            <label>
+              <input type="checkbox" ${checked} value="${item.pageId}">
+              ${escapeHtml(item.title)}
+            </label>
+            <div class="meta">${escapeHtml(item.path)}</div>
+            <div class="meta">pageId: ${item.pageId} / topLevelPrivate: ${item.isTopLevelPrivate}</div>
+          `;
+          container.appendChild(div);
+        });
+      }
+
+      function selectedPageIds() {
+        return Array.from(document.querySelectorAll('#candidates input[type="checkbox"]:checked')).map((el) => el.value);
+      }
+
+      function runDryRun() {
+        const v = values();
+        google.script.run.withSuccessHandler((result) => {
+          if (!result.ok) {
+            setStatus('dry-run失敗: ' + result.error);
+            return;
+          }
+          setStatus('dry-run結果\n' + JSON.stringify(result.data, null, 2));
+        }).dryRunTransfer({ ...v, selectedPageIds: selectedPageIds() });
+      }
+
+      function executeTransfer() {
+        const v = values();
+        const confirmPhrase = document.getElementById('confirmPhrase').value;
+        google.script.run.withSuccessHandler((result) => {
+          if (!result.ok) {
+            setStatus('実行失敗: ' + result.error);
+            return;
+          }
+          setStatus('実行結果\n' + JSON.stringify(result.data, null, 2));
+        }).executeTransfer({ ...v, confirmPhrase, selectedPageIds: selectedPageIds() });
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+    </script>
+  </body>
+</html>
